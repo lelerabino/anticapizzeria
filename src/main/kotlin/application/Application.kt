@@ -13,14 +13,6 @@ class Application {
     private val eventStore = EventStoreInMemory()
     private val commandHandler = CommandHandler(eventStore)
 
-    fun start() {
-        //nothing happen here
-    }
-
-    fun stop() {
-        //nothing here
-    }
-
     fun List<Command>.processCommands(): List<DomainError> =
         map {
             it.process()

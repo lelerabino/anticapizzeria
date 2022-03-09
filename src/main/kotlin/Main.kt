@@ -9,8 +9,6 @@ fun main(args: Array<String>) {
 
     val pn = "0755 123456"
     Application().apply {
-        start()
-
         val errors = listOf(
             StartOrder(pn),
             CreateItem("pizza margherita","pizza margherita descr", 5.0),
@@ -20,7 +18,6 @@ fun main(args: Array<String>) {
         ).processCommands()
 
         println("Errors: $errors")
-
     }
 }
 

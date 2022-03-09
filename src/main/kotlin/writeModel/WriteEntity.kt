@@ -12,10 +12,10 @@ interface EventComposable<T: Event> {
 
 
 sealed class Order(val id: String): EventComposable<OrderEvent>{
-    override abstract fun compose(e: OrderEvent): Order
+    abstract override fun compose(e: OrderEvent): Order
 }
 
-object emptyOrder: Order("") {
+object EmptyOrder: Order("") {
     override fun compose(e: OrderEvent) = when (e) {
         is Started -> NewOrder(e.phoneNum, emptyList())
         else -> this //ignore other events
@@ -63,10 +63,10 @@ data class RefusedOrder(val phoneNum: String, val reason:String): Order(phoneNum
 
 
 sealed class Item(val id: String): EventComposable<ItemEvent>{
-    override abstract fun compose(e: ItemEvent): Item
+    abstract override fun compose(e: ItemEvent): Item
 }
 
-object emptyItem: Item("") {
+object EmptyItem: Item("") {
     override fun compose(e: ItemEvent) = when (e) {
         is ItemCreated -> EnabledItem(e.itemId, e.desc, e.price)
         else -> this

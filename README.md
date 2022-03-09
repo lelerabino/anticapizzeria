@@ -1,8 +1,6 @@
 # anticapizzeria
 
-Example of CQRS implementation using Kotlin and Functional Programming
+Fork of the [original repo](https://github.com/uberto/anticapizzeria) by [Uberto Barbini](https://github.com/uberto).
 
-See my talk here:
-
-https://www.youtube.com/results?search_query=Functional+CQRS+in+Kotlin+by+Uberto+Barbini
+I am using this to experiment a bit with functional DDD approach.
 

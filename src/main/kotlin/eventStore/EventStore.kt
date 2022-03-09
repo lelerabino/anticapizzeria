@@ -1,12 +1,6 @@
 package com.gamasoft.anticapizzeria.eventStore
 
-import kotlinx.coroutines.experimental.channels.SendChannel
-
 abstract class EventStore {
-
-    abstract val sendChannel: SendChannel<Event>
-
-    abstract fun addListener(listener: SendChannel<Event>)
 
     inline fun <reified T:Event> getEvents(pk: String): List<T> =
             when (T::class) {
@@ -18,4 +12,6 @@ abstract class EventStore {
     abstract fun getOrderEvents(pk: String): List<OrderEvent>
 
     abstract fun getItemEvents(pk: String): List<ItemEvent>
+
+    abstract fun storeEvent(event: Event)
 }

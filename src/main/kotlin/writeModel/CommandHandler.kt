@@ -1,36 +1,26 @@
 package com.gamasoft.anticapizzeria.writeModel
 
-import com.gamasoft.anticapizzeria.application.createActor
 import com.gamasoft.anticapizzeria.eventStore.*
 import com.gamasoft.anticapizzeria.functional.Invalid
 import com.gamasoft.anticapizzeria.functional.Valid
 import com.gamasoft.anticapizzeria.functional.Validated
-import kotlinx.coroutines.experimental.CompletableDeferred
-import kotlinx.coroutines.experimental.runBlocking
 
 
 typealias CmdResult = Validated<DomainError, Event>
 typealias EsScope = EventStore.() -> CmdResult
 
-data class CommandMsg(val command: Command, val response: CompletableDeferred<CmdResult>) // a command with a result
-
-
 class CommandHandler(val eventStore: EventStore) {
 
-    //if we need we can have multiple instances
-    val sendChannel = createActor<CommandMsg> { executeCommand(it) }
+    private fun executeCommand(cmd: Command): CmdResult {
 
-    private fun executeCommand(msg: CommandMsg) {
+        val res = processPoly(cmd)(eventStore)
 
-        val res = processPoly(msg.command)(eventStore)
 
-        runBlocking {
-            //we want to reply after sending the event to the store
-            if (res is Valid) {
-                eventStore.sendChannel.send(res.value)
-            }
-            msg.response.complete(res)
+        //we want to reply after sending the event to the store
+        if (res is Valid) {
+            eventStore.storeEvent(res.value)
         }
+        return res
     }
 
     private fun processPoly(c: Command): EsScope {
@@ -55,24 +45,16 @@ class CommandHandler(val eventStore: EventStore) {
     }
 
 
-    fun handle(cmd: Command): CompletableDeferred<CmdResult> =
-            runBlocking {
-                //use launch to execute commands in parallel slightly out of order
-                CommandMsg(cmd, CompletableDeferred()).let {
-                    sendChannel.send(it)
-                    it.response
-                }
-            }
-
+    fun handle(cmd: Command): CmdResult = executeCommand(cmd)
 }
 
 
 private fun List<ItemEvent>.fold(): Item {
-    return this.fold(emptyItem) { i: Item, e: ItemEvent -> i.compose(e)}
+    return this.fold(emptyItem) { i: Item, e: ItemEvent -> i.compose(e) }
 }
 
 private fun List<OrderEvent>.fold(): Order {
-    return this.fold(emptyOrder) { o: Order, e: OrderEvent -> o.compose(e)}
+    return this.fold(emptyOrder) { o: Order, e: OrderEvent -> o.compose(e) }
 }
 
 private fun execute(c: CreateItem): EsScope = {
@@ -108,8 +90,6 @@ private fun execute(c: EnableItem): EsScope = {
 }
 
 
-
-
 private fun execute(c: StartOrder): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
     if (order == emptyOrder)
@@ -139,63 +119,63 @@ private fun execute(c: AddItem): EsScope = {
 
 private fun execute(c: RemoveItem): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
-    when (order){
-        is NewOrder -> if (order.details.any { it.itemId ==c.itemId})
-                        Valid(ItemRemoved(c.phoneNum, c.itemId))
-                        else
-                            Invalid(OrderError("Item ${c.itemId} not present in the order! ${order}", order))
-        is ReadyOrder -> if (order.details.any { it.itemId ==c.itemId})
-                            Valid(ItemRemoved(c.phoneNum, c.itemId))
-                        else
-                            Invalid(OrderError("Item ${c.itemId} not present in the order! ${order}", order))
-    else ->
-        Invalid(OrderError("Order cannot be modified! ${order}", order))
+    when (order) {
+        is NewOrder -> if (order.details.any { it.itemId == c.itemId })
+            Valid(ItemRemoved(c.phoneNum, c.itemId))
+        else
+            Invalid(OrderError("Item ${c.itemId} not present in the order! ${order}", order))
+        is ReadyOrder -> if (order.details.any { it.itemId == c.itemId })
+            Valid(ItemRemoved(c.phoneNum, c.itemId))
+        else
+            Invalid(OrderError("Item ${c.itemId} not present in the order! ${order}", order))
+        else ->
+            Invalid(OrderError("Order cannot be modified! ${order}", order))
     }
 }
 
 private fun execute(c: AddAddress): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
-    when (order){
+    when (order) {
         is NewOrder -> Valid(AddressAdded(c.phoneNum, c.address))
-    else ->
-        Invalid(OrderError("Address cannot be added! ${order}", order))
+        else ->
+            Invalid(OrderError("Address cannot be added! ${order}", order))
     }
 }
 
 private fun execute(c: Confirm): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
-    when (order){
+    when (order) {
         is ReadyOrder -> Valid(Confirmed(c.phoneNum))
-    else ->
-        Invalid(OrderError("Order is not ready for confirmation! ${order}", order))
+        else ->
+            Invalid(OrderError("Order is not ready for confirmation! ${order}", order))
     }
 }
 
 private fun execute(c: Cancel): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
-    when (order){
+    when (order) {
         is ReadyOrder -> Valid(Cancelled(c.phoneNum))
         is NewOrder -> Valid(Cancelled(c.phoneNum))
-    else ->
-        Invalid(OrderError("Order cannot be cancelled now! ${order}", order))
+        else ->
+            Invalid(OrderError("Order cannot be cancelled now! ${order}", order))
     }
 }
 
 private fun execute(c: Pay): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
-    when (order){
+    when (order) {
         is ConfirmedOrder -> Valid(Paid(c.phoneNum, c.price))
-    else ->
-        Invalid(OrderError("Order cannot be paid now! ${order}", order))
+        else ->
+            Invalid(OrderError("Order cannot be paid now! ${order}", order))
     }
 }
 
 private fun execute(c: Refuse): EsScope = {
     val order = getEvents<OrderEvent>(c.phoneNum).fold()
-    when (order){
+    when (order) {
         is ConfirmedOrder -> Valid(Refused(c.phoneNum, c.reason))
-    else ->
-        Invalid(OrderError("Order cannot be refused now! ${order}", order))
+        else ->
+            Invalid(OrderError("Order cannot be refused now! ${order}", order))
     }
 }
 
